@@ -1,0 +1,7 @@
+/* Poem and UI fonts, bundled with the Android client (res/font). */
+@font-face { font-family: 'Dana'; src: url('/fonts/dana_regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Dana'; src: url('/fonts/dana_medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Dana'; src: url('/fonts/dana_bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Vazirmatn'; src: url('/fonts/vazirmatn_regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Vazirmatn'; src: url('/fonts/vazirmatn_bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'IranNastaliq'; src: url('/fonts/irannastaliq.ttf') format('truetype'); font-weight: 400; font-display: swap; }
