@@ -1,6 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
-import { mdiCellphoneArrowDown, mdiDatabaseExportOutline, mdiDatabaseImportOutline } from '@mdi/js';
+import {
+  mdiBellOutline,
+  mdiCellphoneArrowDown,
+  mdiChevronDown,
+  mdiDatabaseExportOutline,
+  mdiDatabaseImportOutline,
+  mdiDatabaseOutline,
+  mdiFormatFont,
+  mdiPaletteOutline,
+  mdiShuffleVariant,
+  mdiViewDashboardOutline,
+} from '@mdi/js';
 import { useTitle } from '../components/Layout';
 import { RandomPoemCard, type RandomPoemPreview } from '../components/RandomPoemCard';
 import { RandomCategoryTree } from '../components/RandomCategoryTree';
@@ -31,6 +42,43 @@ const SAMPLE_PREVIEW: RandomPoemPreview = {
   },
   verses: S.settingVerses[0].map((text, i) => ({ id: i, text, verseOrder: i + 1, position: i, poemId: 0 })),
 };
+
+type SectionProps = {
+  id: string;
+  icon: string;
+  title: string;
+  summary?: ReactNode;
+  open: boolean;
+  onToggle: (id: string) => void;
+  children: ReactNode;
+};
+
+/** A settings card that shows only its title and current value until expanded. */
+function SettingsSection({ id, icon, title, summary, open, onToggle, children }: SectionProps) {
+  return (
+    <section className={`card settings-section collapsible ${open ? 'open' : ''}`} id={id}>
+      <button
+        type="button"
+        className="settings-section-header"
+        aria-expanded={open}
+        aria-controls={`${id}-body`}
+        onClick={() => onToggle(id)}
+      >
+        <Icon path={icon} size={22} className="settings-section-icon" />
+        <span className="settings-section-title">
+          <h3>{title}</h3>
+          {summary && !open && <span className="muted small">{summary}</span>}
+        </span>
+        <Icon path={mdiChevronDown} size={22} className="settings-section-chevron" />
+      </button>
+      {open && (
+        <div className="settings-section-body" id={`${id}-body`}>
+          {children}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function StorageSection() {
   const [info, setInfo] = useState<{ kind: string; persisted: boolean; usage?: number } | null>(null);
@@ -66,8 +114,7 @@ function StorageSection() {
     info?.kind === 'memory' ? S.storageMemory : info?.persisted ? S.storagePersistent : S.storageBestEffort;
 
   return (
-    <section className="card settings-section" id="storage">
-      <h3>{S.storage}</h3>
+    <>
       <p className="muted">{status}</p>
       {info?.usage != null && (
         <p className="muted">
@@ -118,7 +165,7 @@ function StorageSection() {
           void restore(file);
         }}
       />
-    </section>
+    </>
   );
 }
 
@@ -140,7 +187,7 @@ function DailyPoemSection() {
   };
 
   return (
-    <section className="card settings-section" id="daily">
+    <>
       <label className="switch-row">
         <span>
           <strong>{S.dailyRandomPoemNotification}</strong>
@@ -162,19 +209,32 @@ function DailyPoemSection() {
           <input type="time" value={settings.dailyPoemTime} onChange={(e) => void apply(true, e.target.value)} />
         </label>
       )}
-    </section>
+    </>
   );
 }
+
+const SECTION_IDS = ['theme', 'font', 'random-layout', 'random', 'daily', 'storage'];
 
 export default function SettingsPage() {
   useTitle(S.settings);
   const settings = useSettings();
   const canInstall = useCanInstall();
   const location = useLocation();
+  const hashId = location.hash.slice(1);
+  const [openId, setOpenId] = useState<string | null>(SECTION_IDS.includes(hashId) ? hashId : null);
 
   useEffect(() => {
-    if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth' });
-  }, [location.hash]);
+    if (!hashId) return;
+    if (SECTION_IDS.includes(hashId)) setOpenId(hashId);
+    document.getElementById(hashId)?.scrollIntoView({ behavior: 'smooth' });
+  }, [hashId]);
+
+  const toggle = (id: string) => setOpenId((current) => (current === id ? null : id));
+  const section = (id: string) => ({ id, open: openId === id, onToggle: toggle });
+
+  const themeLabel = THEME_OPTIONS.find((o) => o.value === settings.theme)?.label;
+  const fontLabel = FONT_OPTIONS.find((f) => f.value === settings.poemFont)?.label;
+  const layoutLabel = RANDOM_LAYOUT_OPTIONS.find((o) => o.value === settings.randomPoemLayout)?.label;
 
   return (
     <div className="page settings">
@@ -189,8 +249,7 @@ export default function SettingsPage() {
         </section>
       )}
 
-      <section className="card settings-section">
-        <h3>{S.appTheme}</h3>
+      <SettingsSection {...section('theme')} icon={mdiPaletteOutline} title={S.appTheme} summary={themeLabel}>
         <div className="segmented" role="radiogroup" aria-label={S.appTheme}>
           {THEME_OPTIONS.map((o) => (
             <button
@@ -205,10 +264,14 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
-      </section>
+      </SettingsSection>
 
-      <section className="card settings-section">
-        <h3>{S.font}</h3>
+      <SettingsSection
+        {...section('font')}
+        icon={mdiFormatFont}
+        title={S.font}
+        summary={`${fontLabel} · ${toPersianNumber(settings.poemFontSizePercent)}٪`}
+      >
         <div className="font-options" role="radiogroup" aria-label={S.font}>
           {FONT_OPTIONS.map((f) => (
             <button
@@ -224,7 +287,7 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
-        <h3>{S.fontSize}</h3>
+        <h4>{S.fontSize}</h4>
         <div className="slider-row">
           <span style={{ fontSize: 14 }}>آ</span>
           <input
@@ -249,10 +312,9 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
-      </section>
+      </SettingsSection>
 
-      <section className="card settings-section" id="random-layout">
-        <h3>{S.randomPoemLayout}</h3>
+      <SettingsSection {...section('random-layout')} icon={mdiViewDashboardOutline} title={S.randomPoemLayout} summary={layoutLabel}>
         <div className="segmented wrap" role="radiogroup" aria-label={S.randomPoemLayout}>
           {RANDOM_LAYOUT_OPTIONS.map((o) => (
             <button
@@ -268,16 +330,25 @@ export default function SettingsPage() {
           ))}
         </div>
         <RandomPoemCard layout={settings.randomPoemLayout} preview={SAMPLE_PREVIEW} />
-      </section>
+      </SettingsSection>
 
-      <section className="card settings-section" id="random">
-        <h3>{S.randomPoemCategorySelection}</h3>
+      <SettingsSection {...section('random')} icon={mdiShuffleVariant} title={S.randomPoemCategorySelection}>
         <p className="muted">{S.randomPoemCategoryDescription}</p>
         <RandomCategoryTree />
-      </section>
+      </SettingsSection>
 
-      <DailyPoemSection />
-      <StorageSection />
+      <SettingsSection
+        {...section('daily')}
+        icon={mdiBellOutline}
+        title={S.dailyRandomPoemNotification}
+        summary={settings.dailyPoemEnabled ? toPersianNumber(settings.dailyPoemTime) : undefined}
+      >
+        <DailyPoemSection />
+      </SettingsSection>
+
+      <SettingsSection {...section('storage')} icon={mdiDatabaseOutline} title={S.storage}>
+        <StorageSection />
+      </SettingsSection>
     </div>
   );
 }
