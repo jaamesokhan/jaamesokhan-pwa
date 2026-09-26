@@ -874,18 +874,133 @@ textarea,
 
 /* ---------------------------------------------------------------- random poem card */
 
+/* Mirrors the Android client's ClassicRandomPoemCard, PaperLeafRandomPoemCard and JadvalLeafRandomPoemCard. */
 .random-card {
-  border-radius: var(--radius-l);
+  --random-accent: var(--md-tertiary);
+  display: flex;
+  cursor: pointer;
+  margin-block: 8px 20px;
+}
+
+[data-theme='dark'] .random-card {
+  --random-accent: var(--md-primary);
+}
+
+.random-card:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+
+.random-card p {
+  margin: 0;
+}
+
+.random-card button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* classic: gradient card with the poem artwork at the end */
+.layout-classic {
+  height: 228px;
+  border-radius: 28px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--md-tertiary-container), var(--md-tertiary));
+  color: #f4f2ea;
+}
+
+.random-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   padding: 16px;
+}
+
+.layout-classic .random-card-verses {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.random-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.random-card-refresh {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--md-primary) !important;
+  color: #f4f2ea !important;
+}
+
+.random-card-path {
+  min-width: 0;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.random-card-art {
+  flex: none;
+  width: 110px;
+  height: 228px;
+  object-fit: cover;
+}
+
+/* paper leaf: quiet surface card with a header, one beyt and an "another poem" action */
+.layout-paper_leaf {
+  flex-direction: column;
+  border-radius: 28px;
+  overflow: hidden;
+  background: var(--md-surface-container-lowest);
+  border: 1px solid var(--md-outline);
+  color: var(--md-on-surface);
+}
+
+.random-card-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 16px 20px 4px;
 }
 
 .random-card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.random-card-header .poet-avatar,
+.random-card-initial {
+  width: 30px;
+  height: 30px;
+}
+
+.random-card-initial {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--random-accent) 15%, transparent);
+  color: var(--random-accent);
+  font-weight: 700;
+  font-size: 14px;
 }
 
 .random-card-title {
@@ -895,56 +1010,125 @@ textarea,
   flex-direction: column;
 }
 
+.random-card-title strong,
 .random-card-title span {
-  font-size: 12px;
-  opacity: 0.8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.random-card .icon-button {
-  color: inherit;
+.random-card-title strong {
+  font-size: 14px;
 }
 
-.random-card-verses {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 16px;
+.random-card-title span {
+  font-size: 12px;
+  color: var(--md-outline-variant);
+}
+
+.random-card-badge {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--md-outline);
+  border-radius: 999px;
+  color: var(--random-accent);
+  font-size: 11px;
+}
+
+.layout-paper_leaf .random-card-verses,
+.layout-jadval_leaf .random-card-verses {
   text-align: center;
 }
 
-.random-card-verses .verse-line:not(.pos-0):not(.pos-1) {
-  grid-column: 1 / -1;
+.layout-paper_leaf .random-card-verses {
+  font-size: 16px;
+  line-height: 32px;
 }
 
-.layout-classic {
-  background: linear-gradient(135deg, var(--md-tertiary), var(--md-tertiary-container));
-  color: var(--md-on-tertiary);
+.layout-paper_leaf hr {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--md-outline);
 }
 
-.layout-paper_leaf {
-  background: var(--md-surface-container-lowest);
-  border: 1px solid var(--md-outline);
-  box-shadow: var(--shadow-1);
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 31px,
-    color-mix(in srgb, var(--md-outline) 60%, transparent) 32px
-  );
+.random-card-another {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 20px;
+  color: var(--random-accent) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
 }
 
+/* jadval leaf: cream page inside a double gold rule, like a manuscript cartouche */
 .layout-jadval_leaf {
-  background: #f6f1e3;
-  color: #3b2f1c;
-  border: 6px double #a8874a;
+  --jadval-paper: #fbf7ec;
+  --jadval-ink: #2b2a21;
+  --jadval-hairline: #d8d2bc;
+  padding: 9px;
+  background: var(--jadval-paper);
+  color: var(--jadval-ink);
+}
+
+[data-theme='dark'] .layout-jadval_leaf {
+  --jadval-paper: var(--md-surface-container);
+  --jadval-ink: var(--md-on-surface);
+  --jadval-hairline: var(--md-outline);
+}
+
+.random-card-frame {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 4px;
+  border: 3px solid var(--random-accent);
+  outline: 1px solid color-mix(in srgb, var(--random-accent) 50%, transparent);
+  outline-offset: 2px;
 }
 
 .layout-jadval_leaf .random-card-verses {
-  border-top: 1px solid #a8874a;
-  border-bottom: 1px solid #a8874a;
-  padding: 12px 0;
+  width: 100%;
+  font-family: 'IranNastaliq', serif;
+  font-size: 26px;
+  line-height: 40px;
+}
+
+.random-card-cartouche {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  color: var(--random-accent);
+  font-size: 12px;
+}
+
+.random-card-cartouche::before,
+.random-card-cartouche::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--jadval-hairline);
+}
+
+.random-card-cartouche span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.random-card-refresh-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--random-accent) !important;
 }
 
 /* ---------------------------------------------------------------- downloadable poets */
