@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { ToolbarAnchor } from './Toolbars';
 
 /**
@@ -247,42 +247,104 @@ export function useTouchSelection(
     };
   }, [containerRef, points]);
 
-  // Long press on a verse selects the word under the finger; any other touch clears the selection.
+  const handlesRef = useRef(handles);
+  handlesRef.current = handles;
+
+  // Long press on a verse selects the word under the finger, any other touch clears the selection, and the handles
+  // can be dragged. Touch events are used rather than pointer events because Android Chrome cancels the pointer
+  // (pointercancel) when its own long-press gesture kicks in; that gesture also fires `contextmenu`, which we treat
+  // as the long press itself. The timer covers browsers that don't (iOS Safari).
   useEffect(() => {
     const container = containerRef.current;
     if (!enabled || !container) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let origin: { x: number; y: number } | null = null;
+    let press: { x: number; y: number; el: HTMLElement } | null = null;
+    let grab: { key: 'a' | 'b'; dx: number; dy: number } | null = null;
     let suppressClick = false;
-    const cancel = () => {
+    const cancelPress = () => {
       clearTimeout(timer);
-      origin = null;
+      press = null;
     };
 
-    const onPointerDown = (e: globalThis.PointerEvent) => {
+    const selectWordAt = (el: HTMLElement, x: number, y: number) => {
+      cancelPress();
+      const word = wordAt(el, verseElements(container).indexOf(el), x, y);
+      if (!word) return;
+      suppressClick = true;
+      navigator.vibrate?.(10);
+      setPoints({ a: word[0], b: word[1] });
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
       suppressClick = false;
+      cancelPress();
       const target = e.target as HTMLElement;
-      if (target.closest('.floating-toolbar, .sel-handle, dialog')) return;
+      const touch = e.touches[0];
+
+      const handle = target.closest<HTMLElement>('.sel-handle');
+      const layout = handlesRef.current;
+      if (handle && layout && e.touches.length === 1) {
+        e.preventDefault();
+        const key = handle.dataset.key as 'a' | 'b';
+        const h = layout[key === 'a' ? 0 : 1];
+        const origin = container.getBoundingClientRect();
+        // Aim at the middle of the line above the handle rather than at its bottom edge, and keep the finger's
+        // offset from it so the selection doesn't jump on touch.
+        const fontSize = parseFloat(getComputedStyle(container).fontSize) || 16;
+        grab = { key, dx: touch.clientX - (origin.left + h.x), dy: touch.clientY - (origin.top + h.y - fontSize / 2) };
+        setDragging(true);
+        return;
+      }
+
+      if (target.closest('.floating-toolbar, dialog')) return;
       setPoints(null);
-      if (e.pointerType === 'mouse' || !e.isPrimary) return;
+      if (e.touches.length !== 1) return;
       const el = target.closest<HTMLElement>('[data-verse-id]');
       if (!el || !container.contains(el)) return;
-      origin = { x: e.clientX, y: e.clientY };
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (!origin) return;
-        const verse = verseElements(container).indexOf(el);
-        const word = wordAt(el, verse, origin.x, origin.y);
-        origin = null;
-        if (!word) return;
-        suppressClick = true;
-        navigator.vibrate?.(10);
-        setPoints({ a: word[0], b: word[1] });
-      }, LONG_PRESS_MS);
+      press = { x: touch.clientX, y: touch.clientY, el };
+      timer = setTimeout(() => press && selectWordAt(press.el, press.x, press.y), LONG_PRESS_MS);
     };
-    const onPointerMove = (e: globalThis.PointerEvent) => {
-      if (origin && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > MOVE_TOLERANCE) cancel();
+
+    const onTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (press && Math.hypot(touch.clientX - press.x, touch.clientY - press.y) > MOVE_TOLERANCE) cancelPress();
+      if (!grab) return;
+      e.preventDefault();
+      if (touch.clientY < EDGE_SCROLL_ZONE) window.scrollBy(0, -12);
+      else if (touch.clientY > window.innerHeight - EDGE_SCROLL_ZONE) window.scrollBy(0, 12);
+      const point = boundaryAt(container, touch.clientX - grab.dx, touch.clientY - grab.dy);
+      if (!point) return;
+      const key = grab.key;
+      setPoints((prev) => {
+        if (!prev) return prev;
+        const other = key === 'a' ? prev.b : prev.a;
+        const current = key === 'a' ? prev.a : prev.b;
+        // Never collapse to an empty selection; also skip no-op updates.
+        if (compare(point, other) === 0 || compare(point, current) === 0) return prev;
+        return key === 'a' ? { a: point, b: prev.b } : { a: prev.a, b: point };
+      });
     };
+
+    const onTouchEnd = () => {
+      cancelPress();
+      if (grab) {
+        grab = null;
+        setDragging(false);
+      }
+    };
+
+    const onContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.sel-handle')) {
+        e.preventDefault();
+        return;
+      }
+      if (!container.contains(target)) return;
+      e.preventDefault();
+      const el = target.closest<HTMLElement>('[data-verse-id]');
+      if (el) selectWordAt(el, press?.x ?? e.clientX, press?.y ?? e.clientY);
+    };
+
     // A long press must not also count as a tap (which would open a highlight's toolbar).
     const onClick = (e: MouseEvent) => {
       if (!suppressClick) return;
@@ -290,65 +352,25 @@ export function useTouchSelection(
       e.stopPropagation();
       e.preventDefault();
     };
-    const onContextMenu = (e: Event) => {
-      if (container.contains(e.target as Node)) e.preventDefault();
-    };
 
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('pointermove', onPointerMove, { passive: true });
-    document.addEventListener('pointerup', cancel);
-    document.addEventListener('pointercancel', cancel);
-    container.addEventListener('click', onClick, true);
+    document.addEventListener('touchstart', onTouchStart, { passive: false });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    document.addEventListener('touchcancel', onTouchEnd);
+    window.addEventListener('scroll', cancelPress, { passive: true });
     document.addEventListener('contextmenu', onContextMenu);
+    container.addEventListener('click', onClick, true);
     return () => {
-      cancel();
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('pointermove', onPointerMove);
-      document.removeEventListener('pointerup', cancel);
-      document.removeEventListener('pointercancel', cancel);
-      container.removeEventListener('click', onClick, true);
+      cancelPress();
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchcancel', onTouchEnd);
+      window.removeEventListener('scroll', cancelPress);
       document.removeEventListener('contextmenu', onContextMenu);
+      container.removeEventListener('click', onClick, true);
     };
   }, [containerRef, enabled]);
-
-  // Handle dragging. `grab` is the finger's offset from the handle's text boundary, so the text doesn't jump.
-  const grab = useRef<{ key: 'a' | 'b'; dx: number; dy: number } | null>(null);
-
-  const onHandleDown = (key: 'a' | 'b', handle: HandleLayout) => (e: PointerEvent<HTMLDivElement>) => {
-    const container = containerRef.current;
-    if (!container) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const origin = container.getBoundingClientRect();
-    // Aim at the middle of the line above the handle rather than at its bottom edge.
-    const lineHeight = parseFloat(getComputedStyle(container).fontSize) || 16;
-    grab.current = { key, dx: e.clientX - (origin.left + handle.x), dy: e.clientY - (origin.top + handle.y - lineHeight / 2) };
-    setDragging(true);
-  };
-
-  const onHandleMove = (e: PointerEvent<HTMLDivElement>) => {
-    const container = containerRef.current;
-    const g = grab.current;
-    if (!container || !g) return;
-    if (e.clientY < EDGE_SCROLL_ZONE) window.scrollBy(0, -12);
-    else if (e.clientY > window.innerHeight - EDGE_SCROLL_ZONE) window.scrollBy(0, 12);
-    const point = boundaryAt(container, e.clientX - g.dx, e.clientY - g.dy);
-    if (!point) return;
-    setPoints((prev) => {
-      if (!prev) return prev;
-      const other = g.key === 'a' ? prev.b : prev.a;
-      const current = g.key === 'a' ? prev.a : prev.b;
-      // Never collapse to an empty selection; also skip no-op updates.
-      if (compare(point, other) === 0 || compare(point, current) === 0) return prev;
-      return g.key === 'a' ? { a: point, b: prev.b } : { a: prev.a, b: point };
-    });
-  };
-
-  const onHandleUp = () => {
-    grab.current = null;
-    setDragging(false);
-  };
 
   const layer = handles ? (
     <>
@@ -358,11 +380,8 @@ export function useTouchSelection(
           <div
             key={key}
             className={`sel-handle ${h.side}`}
+            data-key={key}
             style={{ left: h.x, top: h.y }}
-            onPointerDown={onHandleDown(key, h)}
-            onPointerMove={onHandleMove}
-            onPointerUp={onHandleUp}
-            onPointerCancel={onHandleUp}
             aria-hidden="true"
           />
         );
