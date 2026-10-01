@@ -255,7 +255,7 @@ export function useTouchSelection(
   useEffect(() => {
     if (!enabled || !container) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let press: { x: number; y: number; el: HTMLElement } | null = null;
+    let press: { x: number; y: number; el: HTMLElement; at: number } | null = null;
     let grab: { key: 'a' | 'b'; dx: number; dy: number } | null = null;
     let suppressClick = false;
     const cancelPress = () => {
@@ -298,7 +298,7 @@ export function useTouchSelection(
       if (e.touches.length !== 1) return;
       const el = target.closest<HTMLElement>('[data-verse-id]');
       if (!el || !container.contains(el)) return;
-      press = { x: touch.clientX, y: touch.clientY, el };
+      press = { x: touch.clientX, y: touch.clientY, el, at: Date.now() };
       timer = setTimeout(() => press && selectWordAt(press.el, press.x, press.y), LONG_PRESS_MS);
     };
 
@@ -330,6 +330,13 @@ export function useTouchSelection(
       }
     };
 
+    // If the browser takes the touch over for its own long-press gesture without firing `contextmenu`, the finger
+    // was held still long enough: treat that as the long press rather than losing it.
+    const onTouchCancel = () => {
+      if (press && Date.now() - press.at >= LONG_PRESS_MS / 2) selectWordAt(press.el, press.x, press.y);
+      onTouchEnd();
+    };
+
     const onContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('.sel-handle')) {
@@ -353,7 +360,7 @@ export function useTouchSelection(
     document.addEventListener('touchstart', onTouchStart, { passive: false });
     document.addEventListener('touchmove', onTouchMove, { passive: false });
     document.addEventListener('touchend', onTouchEnd);
-    document.addEventListener('touchcancel', onTouchEnd);
+    document.addEventListener('touchcancel', onTouchCancel);
     window.addEventListener('scroll', cancelPress, { passive: true });
     document.addEventListener('contextmenu', onContextMenu);
     container.addEventListener('click', onClick, true);
@@ -362,7 +369,7 @@ export function useTouchSelection(
       document.removeEventListener('touchstart', onTouchStart);
       document.removeEventListener('touchmove', onTouchMove);
       document.removeEventListener('touchend', onTouchEnd);
-      document.removeEventListener('touchcancel', onTouchEnd);
+      document.removeEventListener('touchcancel', onTouchCancel);
       window.removeEventListener('scroll', cancelPress);
       document.removeEventListener('contextmenu', onContextMenu);
       container.removeEventListener('click', onClick, true);
