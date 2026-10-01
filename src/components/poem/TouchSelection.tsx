@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { ToolbarAnchor } from './Toolbars';
 
 /**
@@ -203,7 +203,7 @@ function layoutOf(container: HTMLElement, a: TextPoint, b: TextPoint): Layout {
  * and is called again whenever it moves on screen so the toolbar can follow.
  */
 export function useTouchSelection(
-  containerRef: RefObject<HTMLElement | null>,
+  container: HTMLElement | null,
   { enabled, onChange }: { enabled: boolean; onChange: (selection: TouchSelection | null) => void },
 ): { clear: () => void; layer: ReactNode } {
   const [points, setPoints] = useState<{ a: TextPoint; b: TextPoint } | null>(null);
@@ -217,7 +217,6 @@ export function useTouchSelection(
 
   // Paint the selection and report it whenever it, the layout or the verse text changes.
   useLayoutEffect(() => {
-    const container = containerRef.current;
     if (!container || !points) {
       CSS.highlights?.delete(HIGHLIGHT_NAME);
       setHandles(null);
@@ -227,13 +226,12 @@ export function useTouchSelection(
     const layout = layoutOf(container, points.a, points.b);
     setHandles(layout.handles);
     onChangeRef.current(dragging ? null : layout.selection);
-  }, [containerRef, points, dragging, relayout]);
+  }, [container, points, dragging, relayout]);
 
   useEffect(() => () => void CSS.highlights?.delete(HIGHLIGHT_NAME), []);
 
   // Keep things in place when the page scrolls, resizes or re-renders the verses (e.g. highlights toggled).
   useEffect(() => {
-    const container = containerRef.current;
     if (!points || !container) return;
     const bump = () => setRelayout((n) => n + 1);
     window.addEventListener('scroll', bump, { passive: true });
@@ -245,7 +243,7 @@ export function useTouchSelection(
       window.removeEventListener('resize', bump);
       observer.disconnect();
     };
-  }, [containerRef, points]);
+  }, [container, points]);
 
   const handlesRef = useRef(handles);
   handlesRef.current = handles;
@@ -255,7 +253,6 @@ export function useTouchSelection(
   // (pointercancel) when its own long-press gesture kicks in; that gesture also fires `contextmenu`, which we treat
   // as the long press itself. The timer covers browsers that don't (iOS Safari).
   useEffect(() => {
-    const container = containerRef.current;
     if (!enabled || !container) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let press: { x: number; y: number; el: HTMLElement } | null = null;
@@ -370,7 +367,7 @@ export function useTouchSelection(
       document.removeEventListener('contextmenu', onContextMenu);
       container.removeEventListener('click', onClick, true);
     };
-  }, [containerRef, enabled]);
+  }, [container, enabled]);
 
   const layer = handles ? (
     <>
