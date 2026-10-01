@@ -99,13 +99,19 @@ export default function PoemPage() {
   const [highlightLabelsFor, setHighlightLabelsFor] = useState<number[] | null>(null);
   const [flashVerse, setFlashVerse] = useState<number | null>(null);
   const versesRef = useRef<HTMLDivElement>(null);
+  // Also kept as state: the verses only mount after loading, and the touch selection hook must see that happen.
+  const [versesEl, setVersesEl] = useState<HTMLDivElement | null>(null);
+  const attachVerses = useCallback((el: HTMLDivElement | null) => {
+    versesRef.current = el;
+    setVersesEl(el);
+  }, []);
 
   // Text selection → highlight / copy / meaning toolbar. Touch screens use our own selection (see TouchSelection).
   const onTouchSelection = useCallback((next: Selection | null) => {
     setSelection(next);
     if (next) setActiveGroup(null);
   }, []);
-  const touchSelection = useTouchSelection(versesRef, {
+  const touchSelection = useTouchSelection(versesEl, {
     enabled: touchSelectionSupported && !selectMode,
     onChange: onTouchSelection,
   });
@@ -237,7 +243,7 @@ export default function PoemPage() {
       )}
 
       <div
-        ref={versesRef}
+        ref={attachVerses}
         className={`verses ${selectMode ? 'select-mode' : ''} ${showNumbers ? 'numbered' : ''} ${touchSelectionSupported ? 'touch-select' : ''}`}
         style={poemFontStyle(settings)}
         onClick={onVersesClick}
