@@ -1343,6 +1343,50 @@ textarea,
   cursor: pointer;
 }
 
+/* Touch screens: the browser's own selection (and its Copy/Translate menu, "Touch to Search" bar, …) is replaced
+   by the app's — see TouchSelection.tsx. */
+.verses.touch-select {
+  position: relative;
+}
+
+.verses.touch-select .verse-text {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::highlight(poem-selection) {
+  background-color: color-mix(in srgb, var(--md-primary) 40%, transparent);
+}
+
+.sel-handle {
+  position: absolute;
+  z-index: 35;
+  width: 22px;
+  height: 22px;
+  background: var(--md-primary);
+  border-radius: 50%;
+  touch-action: none;
+}
+
+/* Larger invisible touch target. */
+.sel-handle::before {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+
+/* The pointed corner sits on the selection edge; the body hangs outward. */
+.sel-handle.left {
+  transform: translateX(-100%);
+  border-top-right-radius: 0;
+}
+
+.sel-handle.right {
+  border-top-left-radius: 0;
+}
+
 .floating-toolbar {
   position: fixed;
   z-index: 40;

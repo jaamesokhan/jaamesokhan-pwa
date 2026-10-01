@@ -21,6 +21,7 @@ import { useTitle } from '../components/Layout';
 import { LabelPickerSheet } from '../components/labels';
 import { MeaningSheet, NotesSheet, RecitationsSheet } from '../components/poem/PoemSheets';
 import { HighlightToolbar, SelectionToolbar, type ToolbarAnchor } from '../components/poem/Toolbars';
+import { touchSelectionSupported, useTouchSelection } from '../components/poem/TouchSelection';
 import { EmptyState, IconButton, MenuItem, PoetAvatar, Sheet, Spinner } from '../components/ui';
 import { getPoemNeighbors, getPoemPath, getPoemVersesWithHighlights } from '../data/content';
 import { DEFAULT_HIGHLIGHT_COLOR, type Highlight, type VerseWithHighlights } from '../data/types';
@@ -99,11 +100,22 @@ export default function PoemPage() {
   const [flashVerse, setFlashVerse] = useState<number | null>(null);
   const versesRef = useRef<HTMLDivElement>(null);
 
+  // Text selection → highlight / copy / meaning toolbar. Touch screens use our own selection (see TouchSelection).
+  const onTouchSelection = useCallback((next: Selection | null) => {
+    setSelection(next);
+    if (next) setActiveGroup(null);
+  }, []);
+  const touchSelection = useTouchSelection(versesRef, {
+    enabled: touchSelectionSupported && !selectMode,
+    onChange: onTouchSelection,
+  });
+
   useEffect(() => {
     void recordVisit(poemId);
     setSelectMode(false);
     setSelectedVerses(new Set());
     setSelection(null);
+    touchSelection.clear();
     setActiveGroup(null);
     window.scrollTo({ top: 0 });
   }, [poemId]);
@@ -128,8 +140,9 @@ export default function PoemPage() {
       ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [recitedIndex]);
 
-  // Text selection → highlight / copy / meaning toolbar.
+  // Elsewhere (mouse / trackpad) the browser selection is used, read on selectionchange.
   useEffect(() => {
+    if (touchSelectionSupported) return;
     let timer: ReturnType<typeof setTimeout>;
     const onChange = () => {
       clearTimeout(timer);
@@ -147,17 +160,19 @@ export default function PoemPage() {
     };
   }, [selectMode]);
 
+  const { clear: clearTouchSelection } = touchSelection;
   const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
+    clearTouchSelection();
     setSelection(null);
-  }, []);
+  }, [clearTouchSelection]);
 
   const allHighlights = useMemo(() => verses.flatMap((v) => v.highlights), [verses]);
 
   const onVersesClick = (e: MouseEvent) => {
     if (selectMode) return;
     const mark = (e.target as HTMLElement).closest<HTMLElement>('mark[data-group]');
-    if (!mark || !window.getSelection()?.isCollapsed) return;
+    if (!mark || selection || !window.getSelection()?.isCollapsed) return;
     const group = allHighlights.filter((h) => h.groupId === mark.dataset.group).sort((a, b) => a.verseId - b.verseId);
     setActiveGroup({ highlights: group, anchor: anchorOf(mark.getBoundingClientRect()) });
   };
@@ -223,7 +238,7 @@ export default function PoemPage() {
 
       <div
         ref={versesRef}
-        className={`verses ${selectMode ? 'select-mode' : ''} ${showNumbers ? 'numbered' : ''}`}
+        className={`verses ${selectMode ? 'select-mode' : ''} ${showNumbers ? 'numbered' : ''} ${touchSelectionSupported ? 'touch-select' : ''}`}
         style={poemFontStyle(settings)}
         onClick={onVersesClick}
       >
@@ -275,6 +290,7 @@ export default function PoemPage() {
             </div>
           );
         })}
+        {touchSelection.layer}
       </div>
 
       {selection && !selectMode && (
