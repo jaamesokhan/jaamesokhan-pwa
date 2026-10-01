@@ -798,6 +798,66 @@ textarea,
   color: var(--md-inverse-primary);
 }
 
+.install-prompt {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(var(--bottom-nav-h) + 24px + env(safe-area-inset-bottom));
+  z-index: 45;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: calc(100% - 32px);
+  max-width: calc(var(--max-w) - 32px);
+  margin: 0 auto;
+  padding: 12px 4px 8px;
+  padding-inline-start: 16px;
+  border-radius: var(--radius-l);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  box-shadow: var(--shadow-3);
+  animation: install-prompt-in 0.25s ease-out;
+}
+
+.app:not(:has(.bottom-nav)) .install-prompt {
+  bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+.install-prompt img {
+  flex: none;
+  border-radius: 12px;
+}
+
+.install-prompt-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+
+.install-prompt-text .inline-icon {
+  vertical-align: middle;
+  margin-inline: 2px;
+}
+
+.install-prompt-label {
+  font-weight: 700;
+}
+
+.install-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+@keyframes install-prompt-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
 .hint-banner {
   display: flex;
   align-items: center;

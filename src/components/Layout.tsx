@@ -18,12 +18,13 @@ import {
   mdiPlusCircleOutline,
   mdiShareVariantOutline,
 } from '@mdi/js';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Icon, IconButton, MenuItem, Sheet, Toaster } from './ui';
+import { InstallPrompt } from './InstallPrompt';
 import { MiniPlayer } from './MiniPlayer';
 import { getRandomPoemId, getPoemPath } from '../data/content';
 import { shareText } from '../lib/share';
 import { showToast } from '../state/toast';
+import { applyUpdate, clearOfflineReady, dismissUpdate, useUpdateState } from '../state/update';
 import { S } from '../strings';
 import logoUrl from '../assets/name-logo.svg?raw';
 
@@ -97,27 +98,23 @@ function OptionsMenu({ open, onClose }: { open: boolean; onClose: () => void }) 
 }
 
 function UpdatePrompt() {
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    offlineReady: [offlineReady, setOfflineReady],
-    updateServiceWorker,
-  } = useRegisterSW();
+  const { needRefresh, offlineReady } = useUpdateState();
 
   useEffect(() => {
     if (offlineReady) {
       showToast(S.offlineReady, 'success');
-      setOfflineReady(false);
+      clearOfflineReady();
     }
-  }, [offlineReady, setOfflineReady]);
+  }, [offlineReady]);
 
   if (!needRefresh) return null;
   return (
     <div className="update-banner" role="alert">
       <span>{S.updateAvailable}</span>
-      <button type="button" className="button text" onClick={() => setNeedRefresh(false)}>
+      <button type="button" className="button text" onClick={dismissUpdate}>
         {S.close}
       </button>
-      <button type="button" className="button filled" onClick={() => void updateServiceWorker(true)}>
+      <button type="button" className="button filled" onClick={() => void applyUpdate()}>
         {S.update}
       </button>
     </div>
@@ -184,6 +181,7 @@ export function Layout() {
 
       <OptionsMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
       <UpdatePrompt />
+      <InstallPrompt />
       <Toaster />
     </div>
   );

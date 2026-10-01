@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.VITE_DEV_API_PROXY ?? 'https://jaamesokhan.ir';
 
   return {
-    define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+    define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
     plugins: [
       react(),
       VitePWA({

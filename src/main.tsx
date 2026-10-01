@@ -5,7 +5,6 @@ import { AudioProvider } from './audio/AudioProvider';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
 import { workerDb } from './db/client';
-import { refillDailyPoemQueue } from './lib/dailyPoem';
 import { listenForInstallPrompt } from './state/install';
 import { useMediaQuery } from './state/hooks';
 import { useSettings } from './state/settings';
@@ -72,7 +71,7 @@ function App() {
 
 listenForInstallPrompt();
 // Open the database early so the first screen doesn't wait for SQLite to boot.
-void workerDb.init().then(() => refillDailyPoemQueue()).catch((e) => console.error('database init failed', e));
+void workerDb.init().catch((e) => console.error('database init failed', e));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

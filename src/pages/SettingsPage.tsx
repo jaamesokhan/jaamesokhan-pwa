@@ -1,25 +1,21 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import {
-  mdiBellOutline,
   mdiCellphoneArrowDown,
   mdiChevronDown,
-  mdiDatabaseExportOutline,
-  mdiDatabaseImportOutline,
   mdiDatabaseOutline,
   mdiFormatFont,
   mdiPaletteOutline,
   mdiShuffleVariant,
+  mdiUpdate,
   mdiViewDashboardOutline,
 } from '@mdi/js';
 import { useTitle } from '../components/Layout';
 import { RandomPoemCard, type RandomPoemPreview } from '../components/RandomPoemCard';
 import { RandomCategoryTree } from '../components/RandomCategoryTree';
-import { ConfirmDialog, Icon } from '../components/ui';
+import { Icon } from '../components/ui';
 import { workerDb } from '../db/client';
-import { isDailyPoemSupported, setDailyPoem } from '../lib/dailyPoem';
 import { toPersianNumber } from '../lib/format';
-import { downloadBlob } from '../lib/share';
 import { requestPersistentStorage } from '../state/downloads';
 import { promptInstall, useCanInstall } from '../state/install';
 import {
@@ -32,6 +28,7 @@ import {
   useSettings,
 } from '../state/settings';
 import { showToast } from '../state/toast';
+import { applyUpdate, checkForUpdate, useUpdateState } from '../state/update';
 import { S } from '../strings';
 
 const SAMPLE_PREVIEW: RandomPoemPreview = {
@@ -82,9 +79,6 @@ function SettingsSection({ id, icon, title, summary, open, onToggle, children }:
 
 function StorageSection() {
   const [info, setInfo] = useState<{ kind: string; persisted: boolean; usage?: number } | null>(null);
-  const [confirmRestore, setConfirmRestore] = useState<File | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     void (async () => {
       const kind = await workerDb.init();
@@ -93,22 +87,6 @@ function StorageSection() {
       setInfo({ kind, persisted, usage: estimate?.usage });
     })();
   }, []);
-
-  const exportBackup = async () => {
-    const data = await workerDb.exportDb();
-    const date = new Date().toISOString().slice(0, 10);
-    downloadBlob(data, `jaamesokhan-backup-${date}.sqlite3`, 'application/vnd.sqlite3');
-  };
-
-  const restore = async (file: File) => {
-    try {
-      await workerDb.importDb(await file.arrayBuffer());
-      showToast(S.backupImported, 'success');
-    } catch (e) {
-      console.error(e);
-      showToast(S.backupFailed, 'error');
-    }
-  };
 
   const status =
     info?.kind === 'memory' ? S.storageMemory : info?.persisted ? S.storagePersistent : S.storageBestEffort;
@@ -133,92 +111,54 @@ function StorageSection() {
           درخواست ذخیره‌سازی ماندگار
         </button>
       )}
-      <div className="button-row start">
-        <button type="button" className="button tonal" onClick={() => void exportBackup()}>
-          <Icon path={mdiDatabaseExportOutline} size={18} />
-          {S.backupExport}
-        </button>
-        <button type="button" className="button tonal" disabled={info?.kind === 'memory'} onClick={() => fileInput.current?.click()}>
-          <Icon path={mdiDatabaseImportOutline} size={18} />
-          {S.backupImport}
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".sqlite3,.sqlite,.db,application/vnd.sqlite3,application/octet-stream"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = '';
-            if (file) setConfirmRestore(file);
-          }}
-        />
-      </div>
-      <ConfirmDialog
-        open={confirmRestore != null}
-        message={S.backupImportConfirm}
-        danger
-        onCancel={() => setConfirmRestore(null)}
-        onConfirm={() => {
-          const file = confirmRestore!;
-          setConfirmRestore(null);
-          void restore(file);
-        }}
-      />
     </>
   );
 }
 
-function DailyPoemSection() {
-  const settings = useSettings();
-  const [supported, setSupported] = useState<boolean | null>(null);
-  useEffect(() => {
-    void isDailyPoemSupported().then(setSupported);
-  }, []);
+const BUILD_DATE = new Date(__BUILD_TIME__).toLocaleString('fa-IR', { dateStyle: 'medium', timeStyle: 'short' });
 
-  const apply = async (enabled: boolean, time: string) => {
-    const ok = await setDailyPoem(enabled, time);
-    if (!ok && enabled) {
-      showToast(S.dailyRandomPoemUnsupported, 'error', 6000);
-      updateSettings({ dailyPoemEnabled: false });
-      return;
-    }
-    updateSettings({ dailyPoemEnabled: enabled, dailyPoemTime: time });
+function UpdateSection() {
+  const { needRefresh } = useUpdateState();
+  const [checking, setChecking] = useState(false);
+
+  const check = async () => {
+    setChecking(true);
+    const result = await checkForUpdate();
+    setChecking(false);
+    if (result === 'latest') showToast(S.upToDate, 'success');
+    else if (result === 'failed') showToast(S.updateCheckFailed, 'error');
+    else if (result === 'unsupported') showToast(S.updateUnsupported, 'error');
   };
 
   return (
     <>
-      <label className="switch-row">
-        <span>
-          <strong>{S.dailyRandomPoemNotification}</strong>
-          <span className="muted">{S.dailyRandomPoemNotificationDescription}</span>
-        </span>
-        <input
-          type="checkbox"
-          role="switch"
-          className="switch"
-          disabled={!supported}
-          checked={settings.dailyPoemEnabled && !!supported}
-          onChange={(e) => void apply(e.target.checked, settings.dailyPoemTime)}
-        />
-      </label>
-      {supported === false && <p className="muted small">{S.dailyRandomPoemUnsupported}</p>}
-      {supported && settings.dailyPoemEnabled && (
-        <label className="inline-field">
-          <span>{S.dailyRandomPoemTimeLabel}</span>
-          <input type="time" value={settings.dailyPoemTime} onChange={(e) => void apply(true, e.target.value)} />
-        </label>
-      )}
+      <p className="muted">
+        {S.appVersion} {toPersianNumber(__APP_VERSION__)} · {S.appBuiltAt} {BUILD_DATE}
+      </p>
+      {needRefresh && <p>{S.updateAvailable}</p>}
+      <div className="button-row start">
+        {needRefresh ? (
+          <button type="button" className="button filled" onClick={() => void applyUpdate()}>
+            {S.update}
+          </button>
+        ) : (
+          <button type="button" className="button tonal" disabled={checking} onClick={() => void check()}>
+            <Icon path={mdiUpdate} size={18} />
+            {checking ? S.checkingForUpdate : S.checkForUpdate}
+          </button>
+        )}
+      </div>
     </>
   );
 }
 
-const SECTION_IDS = ['theme', 'font', 'random-layout', 'random', 'daily', 'storage'];
+const SECTION_IDS = ['theme', 'font', 'random-layout', 'random', 'storage', 'update'];
 
 export default function SettingsPage() {
   useTitle(S.settings);
   const settings = useSettings();
   const canInstall = useCanInstall();
+  const { needRefresh } = useUpdateState();
   const location = useLocation();
   const hashId = location.hash.slice(1);
   const [openId, setOpenId] = useState<string | null>(SECTION_IDS.includes(hashId) ? hashId : null);
@@ -337,17 +277,17 @@ export default function SettingsPage() {
         <RandomCategoryTree />
       </SettingsSection>
 
-      <SettingsSection
-        {...section('daily')}
-        icon={mdiBellOutline}
-        title={S.dailyRandomPoemNotification}
-        summary={settings.dailyPoemEnabled ? toPersianNumber(settings.dailyPoemTime) : undefined}
-      >
-        <DailyPoemSection />
-      </SettingsSection>
-
       <SettingsSection {...section('storage')} icon={mdiDatabaseOutline} title={S.storage}>
         <StorageSection />
+      </SettingsSection>
+
+      <SettingsSection
+        {...section('update')}
+        icon={mdiUpdate}
+        title={S.appUpdate}
+        summary={needRefresh ? S.updateAvailable : `${S.appVersion} ${toPersianNumber(__APP_VERSION__)}`}
+      >
+        <UpdateSection />
       </SettingsSection>
     </div>
   );
