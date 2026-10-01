@@ -69,15 +69,6 @@ class WorkerDb implements Db {
     return result;
   }
 
-  async exportDb(): Promise<ArrayBuffer> {
-    return this.post<ArrayBuffer>({ type: 'exportDb' });
-  }
-
-  async importDb(data: ArrayBuffer): Promise<void> {
-    await this.post({ type: 'importDb', data }, [data]);
-    this.notify();
-  }
-
   get changeVersion() {
     return this.version;
   }

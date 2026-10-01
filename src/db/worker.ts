@@ -54,22 +54,6 @@ async function handle(id: number, req: WorkerRequest): Promise<unknown> {
         self.postMessage({ id, progress } satisfies WorkerMessage);
       });
     }
-    case 'exportDb': {
-      const bytes = pool ? await pool.exportFile(DB_FILE) : sqlite3!.capi.sqlite3_js_db_export(requireDb());
-      return bytes.buffer;
-    }
-    case 'importDb': {
-      if (!pool) throw new Error('restoring a backup needs persistent storage');
-      const data = new Uint8Array(req.data);
-      // "SQLite format 3\0"
-      const header = new TextDecoder().decode(data.subarray(0, 15));
-      if (header !== 'SQLite format 3') throw new Error('not a SQLite database file');
-      requireDb().close();
-      await pool.importDb(DB_FILE, data);
-      db = new pool.OpfsSAHPoolDb(DB_FILE);
-      migrate(db);
-      return true;
-    }
   }
 }
 

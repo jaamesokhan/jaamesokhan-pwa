@@ -17,9 +17,7 @@ export type WorkerRequest =
   | { type: 'query'; sql: string; params?: BindingSpec }
   | { type: 'run'; sql: string; params?: BindingSpec }
   | { type: 'batch'; statements: Statement[] }
-  | { type: 'importPoet'; poet: PoetInput; zip: ArrayBuffer }
-  | { type: 'exportDb' }
-  | { type: 'importDb'; data: ArrayBuffer };
+  | { type: 'importPoet'; poet: PoetInput; zip: ArrayBuffer };
 
 export type WorkerMessage =
   | { id: number; ok: true; result: unknown }

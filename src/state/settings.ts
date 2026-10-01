@@ -13,9 +13,6 @@ export interface Settings {
   randomPoemLayout: RandomPoemLayout;
   randomPoemLayoutIntroSeen: boolean;
   showHighlightHint: boolean;
-  dailyPoemEnabled: boolean;
-  /** "HH:MM", local time. */
-  dailyPoemTime: string;
 }
 
 export const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -47,8 +44,6 @@ const DEFAULTS: Settings = {
   randomPoemLayout: 'CLASSIC',
   randomPoemLayoutIntroSeen: false,
   showHighlightHint: true,
-  dailyPoemEnabled: false,
-  dailyPoemTime: '12:25',
 };
 
 const STORAGE_KEY = 'jaamesokhan.settings';
