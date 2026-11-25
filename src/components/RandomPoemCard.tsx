@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { Fragment, useCallback, useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { mdiAutorenew } from '@mdi/js';
 import randomPoemArt from '../assets/random-poem.png';
@@ -37,11 +37,14 @@ function Avatar({ path }: { path: PoemPath }) {
 
 function Verses({ verses, lines }: { verses: Verse[]; lines?: number }) {
   return (
-    <div className="random-card-verses">
-      {verses.slice(0, lines).map((v) => (
-        <p key={v.id}>{v.text}</p>
+    <p className="random-card-verses">
+      {verses.slice(0, lines).map((v, i) => (
+        <Fragment key={v.id}>
+          {i > 0 && <br />}
+          {v.text}
+        </Fragment>
       ))}
-    </div>
+    </p>
   );
 }
 

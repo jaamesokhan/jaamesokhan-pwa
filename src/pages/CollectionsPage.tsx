@@ -1,5 +1,5 @@
 // Saved poems and highlights with label filters (Android: BookmarkCategoriesScreen).
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
   mdiArrowLeft,
@@ -36,18 +36,19 @@ type Item = { kind: 'bookmark'; data: BookmarkItem } | { kind: 'highlight'; data
 
 function HighlightPreview({ item }: { item: HighlightGroupItem }) {
   return (
-    <div className="highlight-preview">
+    <p className="highlight-preview">
       {item.verses.map((v, i) => {
         const h = item.highlights[i];
         return (
-          <p key={v.id}>
+          <Fragment key={h.id}>
+            {i > 0 && <br />}
             {v.text.slice(0, h.startIndex)}
             <mark style={{ background: h.color }}>{v.text.slice(h.startIndex, h.endIndex)}</mark>
             {v.text.slice(h.endIndex)}
-          </p>
+          </Fragment>
         );
       })}
-    </div>
+    </p>
   );
 }
 
